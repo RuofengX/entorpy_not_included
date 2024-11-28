@@ -1,0 +1,11 @@
+[package]
+name = "entorpy_not_included"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+heapless = { version = "0.8.0", features = ["serde"] }
+kdtree = { version = "0.7.0", features = ["serde"] }
+ordered-float = { version = "4.5.0", features = ["serde"] }
+serde = { version = "1.0.215", features = ["rc"] }
+serde_derive = "1.0.215"
