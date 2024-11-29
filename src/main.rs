@@ -1,21 +1,19 @@
-use kdtree::KdTree;
+#![feature(async_iterator)]
 
-mod cell;
-mod player;
-mod pos;
+pub mod cell;
+pub mod player;
+pub mod pool;
+pub mod pos;
 
-pub(crate) use cell::Cell;
-pub(crate) use player::Player;
-pub(crate) use pos::Position;
-
-type Str = &'static str;
+pub mod prelude {
+    pub use crate::cell::Cell;
+    pub use crate::player::Player;
+    pub use crate::pool::{Pool, Pooling};
+    pub use crate::pos::{Position, Unit};
+}
 
 pub struct World {}
 
 fn main() {
-    let mut kd = KdTree::new(2);
-    let cell = Cell::new(Position::default(), "void", 0.0);
-    kd.add(cell.position(), cell).unwrap();
-
     println!("Hello, world!");
 }

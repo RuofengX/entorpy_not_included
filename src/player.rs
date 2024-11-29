@@ -1,7 +1,4 @@
-use std::{
-    ops::Deref,
-    sync::{atomic::AtomicU64, Arc},
-};
+use std::sync::{atomic::AtomicU64, Arc};
 
 use serde_derive::{Deserialize, Serialize};
 
@@ -10,7 +7,7 @@ use crate::pos::Position;
 #[derive(Debug, Clone, Default)]
 pub struct Player {
     id: PlayerID,
-    data: Arc<PlayerData>,
+    data: PlayerData,
 }
 impl std::hash::Hash for Player {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -22,6 +19,11 @@ impl std::hash::Hash for Player {
 struct PlayerID(u64);
 impl PlayerID {
     const GLOBAL_COUNTER: AtomicU64 = AtomicU64::new(0);
+}
+impl AsRef<u64> for PlayerID {
+    fn as_ref(&self) -> &u64 {
+        &self.0
+    }
 }
 impl Default for PlayerID {
     fn default() -> Self {
