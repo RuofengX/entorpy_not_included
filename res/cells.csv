@@ -1,0 +1,16 @@
+name           ,ty      ,temp_cold      ,cold_product  ,temp_high ,hot_product   ,density(g/L) ,comment
+rock           ,solid   ,               ,              ,1200      ,lava          ,2000         ,石块
+lava           ,liquid  ,1200           ,              ,          ,              ,2300         ,岩浆
+oxygen         ,gas     ,-182.97        ,oxygen_liquid ,          ,              ,1.429        ,氧气
+oxygen_liquid  ,liquid  ,-218.4         ,oxygen_solid  ,-182.97   ,oxygen        ,1.429        ,氧气
+oxygen_solid   ,solid   ,               ,              ,-218.4    ,oxygen_liquid ,1.429        ,氧气
+
+//TODO:
+hydrogen       ,-259.2  ,hydrogen_liqid ,              ,          ,0.08988       ,氢气
+hydrogen_liqid ,-259.16 ,               ,-259.2        ,0.08988   ,氢气
+carbon_dioxide ,-78.5   ,               ,-56.6         ,1.977     ,二氧化碳
+methane        ,-182.5  ,               ,-161.5        ,717.4     ,甲烷
+water          ,0       ,               ,100           ,1000      ,水
+organtic_water ,-5      ,               ,96            ,1145      ,污染水
+ethanol        ,-114.1  ,               ,78.5          ,806.25    ,乙醇
+oil            ,24      ,               ,175           ,725       ,煤油
