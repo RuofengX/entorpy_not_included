@@ -1,4 +1,4 @@
-use std::sync::{atomic::AtomicU64, Arc};
+use std::sync::atomic::AtomicU64;
 
 use serde_derive::{Deserialize, Serialize};
 

@@ -1,16 +1,16 @@
-name           ,ty      ,temp_cold      ,cold_product  ,temp_high ,hot_product   ,density(g/L) ,comment
-rock           ,solid   ,               ,              ,1200      ,lava          ,2000         ,石块
-lava           ,liquid  ,1200           ,              ,          ,              ,2300         ,岩浆
-oxygen         ,gas     ,-182.97        ,oxygen_liquid ,          ,              ,1.429        ,氧气
-oxygen_liquid  ,liquid  ,-218.4         ,oxygen_solid  ,-182.97   ,oxygen        ,1.429        ,氧气
-oxygen_solid   ,solid   ,               ,              ,-218.4    ,oxygen_liquid ,1.429        ,氧气
-
-//TODO:
-hydrogen       ,-259.2  ,hydrogen_liqid ,              ,          ,0.08988       ,氢气
-hydrogen_liqid ,-259.16 ,               ,-259.2        ,0.08988   ,氢气
-carbon_dioxide ,-78.5   ,               ,-56.6         ,1.977     ,二氧化碳
-methane        ,-182.5  ,               ,-161.5        ,717.4     ,甲烷
-water          ,0       ,               ,100           ,1000      ,水
-organtic_water ,-5      ,               ,96            ,1145      ,污染水
-ethanol        ,-114.1  ,               ,78.5          ,806.25    ,乙醇
-oil            ,24      ,               ,175           ,725       ,煤油
+name,phase,cold_temp,cold_product,hot_temp,hot_product,molar_mass,comment
+rock,Solid,,,1200,lava,,石块
+lava,Liquid,1200,rock,,,,岩浆
+oxygen,Gas,-182.97,oxygen_Liquid,,,31.999,氧气
+oxygen_Liquid,Liquid,-218.4,oxygen_Solid,-182.97,oxygen,,液氧
+oxygen_Solid,Solid,,,-218.4,oxygen_Liquid,,固态氧
+hydrogen,Gas,-252.77,hydrogen_Liquid,,,2.016,氢气
+hydrogen_Liquid,Liquid,-259.2,hydrogen_Solid,-252.77,hydrogen,,液氢
+hydrogen_Solid,Solid,,,-259.2,hydrogen_Liquid,,固态氢
+vapor,Gas,100,water,,,18,水蒸汽
+water,Liquid,0,ice,100,vapor,,水
+ice,Solid,,,0,water,,冰
+polluted_water,Liquid,-6,polluted_ice,107,vapor,,污染水
+polluted_ice,Solid,,,0,water,,污染冰
+carbon_dioxide,Gas,-78.5,dry_ice,,,,二氧化碳
+dry_ice,Gas,,,-78.5,carbon_dioxide,44,干冰

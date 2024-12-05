@@ -1,6 +1,7 @@
 {
-    "python.analysis.typeCheckingMode": "strict",
-    "[csv]": {
-        "editor.inlayHints.maximumLength": 0
+    "dataWrangler.columnInsights.displayOnOpen": false,
+    "dataWrangler.enabledFileTypes": {
+        "csv": false,
+        "tsv": false
     }
 }

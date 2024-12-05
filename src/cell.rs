@@ -11,9 +11,8 @@ use std::{
 use kdtree::KdTree;
 use serde_derive::{Deserialize, Serialize};
 
-use crate::prelude::*;
+use crate::{prelude::*, res::CellTy};
 
-type CellType = &'static str;
 const DEFAULT_DISTANCE: for<'a, 'b> fn(&'a [Unit], &'b [Unit]) -> Unit =
     kdtree::distance::squared_euclidean;
 
@@ -54,8 +53,11 @@ impl Deref for CellID {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Cell {
     pos: Position,
-    ty: &'static str,
-    amount: f32,
+    type_hint: &'static str,
+    mass: f32,
+    temperature: f32,
+    /// only gas has pressure
+    pressure: Option<f32>,
 }
 impl AsRef<Position> for Cell {
     fn as_ref(&self) -> &Position {
@@ -63,18 +65,39 @@ impl AsRef<Position> for Cell {
     }
 }
 impl Cell {
-    pub fn new(pos: Position, ty: &'static str, amount: f32) -> Self {
-        Cell { pos, ty, amount }
+    /// 体积
+    pub const VOLUMN: f32 = 1.0;
+
+    /// No check type_hint
+    pub fn new_unchecked(
+        pos: Position,
+        type_hint: &'static str,
+        mass: f32,
+        temperature: f32,
+    ) -> Self {
+        let ty = CellTy::get_unchecked(&type_hint);
+        let pressure = ty.gas_pressure(mass, temperature, Self::VOLUMN);
+        Cell {
+            pos,
+            type_hint,
+            mass,
+            temperature,
+            pressure,
+        }
     }
 
     #[inline]
-    pub fn position(&self) -> Position {
-        self.pos
+    pub fn ty(&self) -> &'static CellTy {
+        CellTy::get_unchecked(self.type_hint)
     }
 
-    #[inline]
-    pub fn data(&self) -> (CellType, f32) {
-        (self.ty, self.amount)
+    pub fn tick(&mut self) {
+        self.pressure = self
+            .ty()
+            .gas_pressure(self.mass, self.temperature, Self::VOLUMN);
+        if let Some(new_ty) = self.ty().check_transition(self.temperature) {
+            self.type_hint = new_ty.name.as_str();
+        }
     }
 }
 
