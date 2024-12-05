@@ -6,6 +6,8 @@ use serde_derive::{Deserialize, Serialize};
 type TypeDict = HashMap<&'static str, &'static CellTy>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "phase")]
+#[serde(rename_all = "lowercase")]
 pub enum Phase {
     Gas {
         molar_mass: f32,
