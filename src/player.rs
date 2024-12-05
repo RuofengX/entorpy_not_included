@@ -7,7 +7,7 @@ use crate::pos::Position;
 #[derive(Debug, Clone, Default)]
 pub struct Player {
     id: PlayerID,
-    data: PlayerData,
+    data: Data,
 }
 impl std::hash::Hash for Player {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -33,14 +33,14 @@ impl Default for PlayerID {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-struct PlayerData {
+struct Data {
     pos: Position,
     health: f32,
     speed: f32,
     energy: f32,
     breath: f32,
 }
-impl Default for PlayerData {
+impl Default for Data {
     fn default() -> Self {
         Self {
             pos: Default::default(),

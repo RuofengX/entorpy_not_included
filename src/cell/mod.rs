@@ -1,3 +1,5 @@
+mod material;
+
 use std::{
     async_iter::AsyncIterator,
     collections::BTreeMap,
@@ -11,7 +13,9 @@ use std::{
 use kdtree::KdTree;
 use serde_derive::{Deserialize, Serialize};
 
-use crate::{prelude::*, res::CellTy};
+use crate::prelude::*;
+
+pub use material::Material;
 
 const DEFAULT_DISTANCE: for<'a, 'b> fn(&'a [Unit], &'b [Unit]) -> Unit =
     kdtree::distance::squared_euclidean;
@@ -50,13 +54,13 @@ impl Deref for CellID {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Cell {
     pos: Position,
-    type_hint: &'static str,
+    material: Material,
     mass: f32,
     temperature: f32,
-    /// only gas has pressure
+    /// 只有气体才有压力
     pressure: Option<f32>,
 }
 impl AsRef<Position> for Cell {
@@ -68,36 +72,63 @@ impl Cell {
     /// 体积
     pub const VOLUMN: f32 = 1.0;
 
-    /// No check type_hint
-    pub fn new_unchecked(
-        pos: Position,
-        type_hint: &'static str,
-        mass: f32,
-        temperature: f32,
-    ) -> Self {
-        let ty = CellTy::get_unchecked(&type_hint);
-        let pressure = ty.gas_pressure(mass, temperature, Self::VOLUMN);
-        Cell {
+    /// 新建一个Cell，认为type_hint是有效的字符串
+    pub fn new_unchecked(pos: Position, type_hint: &str, mass: f32, temperature: f32) -> Self {
+        let mut ret = Cell {
             pos,
-            type_hint,
+            material: Material::get_unchecked(&type_hint),
             mass,
             temperature,
-            pressure,
+            pressure: None,
+        };
+        ret.update();
+        ret
+    }
+
+    /// 向cell堆叠新的物质，mass必须为非负数
+    pub fn stack(&mut self, mass: f32) {
+        if mass < 0.0 {
+            return;
+        }
+        self.mass += mass;
+        self.update();
+    }
+
+    /// 从cell拿取其中的物质，拿取后的质量必须为非负数
+    pub fn take(&mut self, mass: f32) -> Option<f32> {
+        let mass = self.mass - mass;
+        if mass >= 0.0 {
+            self.mass = mass;
+            self.update();
+            Some(mass)
+        } else {
+            None
         }
     }
 
-    #[inline]
-    pub fn ty(&self) -> &'static CellTy {
-        CellTy::get_unchecked(self.type_hint)
+    /// 对cell加热或排热
+    pub fn heat(&mut self, temperature: f32) {
+        self.temperature += temperature;
+        self.update();
     }
 
-    pub fn tick(&mut self) {
+    /// 更新Cell数据状态
+    pub fn update(&mut self) {
+        if self.mass == 0.0 {
+            self.material = Material::get_unchecked("void");
+            self.mass = f32::NAN;
+            self.temperature = f32::NAN;
+            self.pressure = None;
+            return;
+        }
+
+        if let Some(new_ty) = self.material.check_transition(self.temperature) {
+            self.material = new_ty;
+        }
+
         self.pressure = self
-            .ty()
+            .material
             .gas_pressure(self.mass, self.temperature, Self::VOLUMN);
-        if let Some(new_ty) = self.ty().check_transition(self.temperature) {
-            self.type_hint = new_ty.name.as_str();
-        }
     }
 }
 
@@ -110,9 +141,10 @@ pub struct Cells {
 impl Cells {
     pub async fn add(&mut self, value: Cell) -> CellID {
         let id = CellID::default();
+        let pos = value.pos;
         self.cells.insert(id, value).await;
-        self.kd_idx.add(value.pos, id).unwrap();
-        self.pos_idx.insert(value.pos, id);
+        self.kd_idx.add(pos, id).unwrap();
+        self.pos_idx.insert(pos, id);
         id
     }
 

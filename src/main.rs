@@ -4,7 +4,7 @@ pub mod cell;
 pub mod player;
 pub mod pool;
 pub mod pos;
-pub mod res;
+mod pyhsic;
 
 pub mod prelude {
     pub use crate::cell::Cell;
