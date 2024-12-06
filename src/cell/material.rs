@@ -1,6 +1,7 @@
 use core::f32;
 use std::{
     collections::HashMap,
+    ops::Deref,
     sync::{Arc, LazyLock},
 };
 
@@ -8,11 +9,10 @@ use serde_derive::{Deserialize, Serialize};
 
 type TypeDict = HashMap<&'static str, MaterialTy>;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "phase")]
 #[serde(rename_all = "lowercase")]
 pub enum Phase {
-    Void,
     Gas {
         molar_mass: f32,
         cold_temp: f32,
@@ -29,6 +29,17 @@ pub enum Phase {
         cold_product: String,
     },
 }
+impl Phase {
+    pub fn is_gas(&self) -> bool {
+        matches!(self, Phase::Gas { .. })
+    }
+    pub fn is_solid(&self) -> bool {
+        matches!(self, Phase::Solid { .. })
+    }
+    pub fn is_liquid(&self) -> bool {
+        matches!(self, Phase::Liquid { .. })
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct MaterialData {
@@ -37,10 +48,21 @@ struct MaterialData {
     #[serde(flatten)]
     pub phase: Phase,
 }
+impl PartialEq for MaterialData {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
 
+/// 物质类型单例，一种物质一个<aterialData，但可以被多次引用
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MaterialTy {
     inner: Arc<MaterialData>,
+}
+impl PartialEq for MaterialTy {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(&*self.inner, &*other.inner)
+    }
 }
 
 impl MaterialTy {
@@ -67,6 +89,22 @@ impl MaterialTy {
             // store
             ret.insert(name, ty);
         }
+
+        // check
+        for i in ret.values() {
+            match i.phase() {
+                Phase::Gas { cold_product, .. } => assert!(ret.contains_key(cold_product.as_str())),
+                Phase::Liquid {
+                    hot_product,
+                    cold_product,
+                    ..
+                } => {
+                    assert!(ret.contains_key(hot_product.as_str()));
+                    assert!(ret.contains_key(cold_product.as_str()));
+                }
+                Phase::Solid { hot_product, .. } => assert!(ret.contains_key(hot_product.as_str())),
+            }
+        }
         ret
     }
 
@@ -90,7 +128,6 @@ impl MaterialTy {
     /// 计算物态变化，如果变化，返回变化后的类型
     pub fn check_transition(&self, temp: f32) -> Option<MaterialTy> {
         match &self.inner.phase {
-            Phase::Void => (),
             Phase::Gas {
                 cold_temp,
                 cold_product,
@@ -141,6 +178,14 @@ impl MaterialTy {
         }
     }
 }
+impl Deref for MaterialTy {
+    type Target = Phase;
+
+    fn deref(&self) -> &Self::Target {
+        self.phase()
+    }
+}
+
 mod test {
     #[test]
     fn test_read_csv() {

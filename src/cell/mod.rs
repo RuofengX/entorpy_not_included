@@ -79,6 +79,10 @@ impl Material {
         ret
     }
 
+    pub fn ty(&self) -> MaterialTy {
+        self.ty.clone()
+    }
+
     /// 向cell堆叠新的物质，mass必须为非负数
     pub fn stack(&mut self, mass: f32) {
         if mass < 0.0 {
@@ -137,27 +141,19 @@ impl Cell {
         self.material.as_ref()
     }
 
-    pub fn get_gas_pressure(&self) -> Option<f32> {
-        self.get_material().and_then(|x| x.pressure)
-    }
-
-    pub fn is_gas(&self) -> bool {
-        self.get_material().is_some_and(|x| x.pressure.is_some())
-    }
-
     pub fn is_void(&self) -> bool {
         self.get_material().is_none()
     }
 
     pub async fn gas_force(&self, cells: &Cells) -> Option<Offset> {
-        if !self.is_gas() {
+        if !self.get_material()?.ty().is_gas() {
             return None;
         }
 
         let task = self.pos.neighbour_with_offset().into_iter();
         let gradients = join_all(task.map(|(pos, offset)| async move {
             if let Some(cell) = cells.get_by_position(pos).await {
-                Some((cell.read().await.get_gas_pressure()?, offset))
+                Some((cell.read().await.get_material()?.pressure?, offset))
             } else {
                 None
             }
@@ -171,6 +167,35 @@ impl Cell {
             .sum();
 
         Some(gradient)
+    }
+
+    pub async fn fluid_direct(&self, cell: &Cells) -> Option<Vec<Offset>> {
+        if let Some(m) = self.get_material() {
+            let ty = m.ty();
+            if ty.is_solid() {
+                return None;
+            }
+        }
+        Some(
+            join_all(
+                cell.get_neighbour_with_offset_by_id(self.id)
+                    .await
+                    .unwrap()
+                    .into_iter()
+                    .map(|(cell, offset)| async move {
+                        let m = cell.read().await.get_material()?.ty();
+                        if m == self.get_material()?.ty() {
+                            Some(offset / offset.length())
+                        } else {
+                            None
+                        }
+                    }),
+            )
+            .await
+            .into_iter()
+            .filter_map(|x| x)
+            .collect(),
+        )
     }
 }
 impl AsRef<Position> for Cell {

@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 
 use kdtree::KdTree;
 
-use crate::prelude::*;
 use super::*;
+use crate::prelude::*;
 
 // Cells
 pub struct Cells {
@@ -71,6 +71,20 @@ impl Cells {
         for n_pos in p.neighbour() {
             if let Some(n) = self.get_by_position(n_pos).await {
                 ret.push(n);
+            }
+        }
+        Some(ret)
+    }
+    pub async fn get_neighbour_with_offset_by_id(
+        &self,
+        id: CellID,
+    ) -> Option<Vec<(Pooling<Cell>, Offset)>> {
+        let c = self.get_by_id(id).await?;
+        let p = c.read().await.pos;
+        let mut ret = vec![];
+        for (n_pos, offset) in p.neighbour_with_offset() {
+            if let Some(n) = self.get_by_position(n_pos).await {
+                ret.push((n, offset));
             }
         }
         Some(ret)

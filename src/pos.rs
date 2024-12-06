@@ -18,6 +18,7 @@ pub const RIGHT_UP: Offset = Offset { x: 1.0, y: -1.0 };
 pub const LEFT_DOWN: Offset = Offset { x: -1.0, y: 1.0 };
 pub const RIGHT_DOWN: Offset = Offset { x: 1.0, y: 1.0 };
 
+
 #[derive(
     Debug, Clone, Copy, Default, Hash, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord,
 )]
