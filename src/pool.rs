@@ -21,6 +21,10 @@ impl<K: Ord, V> Pool<K, V> {
         let rtx = self.inner.read().await;
         rtx.get(key).map(|x| Arc::clone(x))
     }
+    pub fn blocking_get(&self, key: &K) -> Option<Pooling<V>> {
+        let rtx = self.inner.blocking_read();
+        rtx.get(key).map(|x| Arc::clone(x))
+    }
     pub async fn remove(&self, key: &K) -> Option<Pooling<V>> {
         let mut rtx = self.inner.write().await;
         rtx.remove(key)

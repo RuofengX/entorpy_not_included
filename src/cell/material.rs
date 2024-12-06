@@ -6,7 +6,7 @@ use std::{
 
 use serde_derive::{Deserialize, Serialize};
 
-type TypeDict = HashMap<&'static str, Material>;
+type TypeDict = HashMap<&'static str, MaterialTy>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "phase")]
@@ -39,11 +39,11 @@ struct MaterialData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Material {
+pub struct MaterialTy {
     inner: Arc<MaterialData>,
 }
 
-impl Material {
+impl MaterialTy {
     pub const ALL: LazyLock<TypeDict> = LazyLock::new(Self::load);
     fn load() -> TypeDict {
         let mut ret = HashMap::default();
@@ -60,7 +60,7 @@ impl Material {
             let name: &'static str = Box::leak(type_data.name.clone().into_boxed_str());
 
             // build cell_ty
-            let ty = Material {
+            let ty = MaterialTy {
                 inner: Arc::new(type_data),
             };
 
@@ -71,7 +71,7 @@ impl Material {
     }
 
     #[inline]
-    pub fn get_unchecked(name: &str) -> Material {
+    pub fn get_unchecked(name: &str) -> MaterialTy {
         Self::ALL.get(name).unwrap().clone()
     }
 
@@ -88,7 +88,7 @@ impl Material {
     }
 
     /// 计算物态变化，如果变化，返回变化后的类型
-    pub fn check_transition(&self, temp: f32) -> Option<Material> {
+    pub fn check_transition(&self, temp: f32) -> Option<MaterialTy> {
         match &self.inner.phase {
             Phase::Void => (),
             Phase::Gas {
@@ -97,7 +97,7 @@ impl Material {
                 ..
             } => {
                 if temp < *cold_temp {
-                    return Some(Material::get_unchecked(&cold_product));
+                    return Some(MaterialTy::get_unchecked(&cold_product));
                 }
             }
             Phase::Liquid {
@@ -107,10 +107,10 @@ impl Material {
                 cold_product,
             } => {
                 if temp < *cold_temp {
-                    return Some(Material::get_unchecked(&cold_product));
+                    return Some(MaterialTy::get_unchecked(&cold_product));
                 }
                 if temp > *hot_temp {
-                    return Some(Material::get_unchecked(&hot_product));
+                    return Some(MaterialTy::get_unchecked(&hot_product));
                 }
             }
             Phase::Solid {
@@ -118,7 +118,7 @@ impl Material {
                 hot_product,
             } => {
                 if temp > *hot_temp {
-                    return Some(Material::get_unchecked(&hot_product));
+                    return Some(MaterialTy::get_unchecked(&hot_product));
                 }
             }
         }
@@ -145,7 +145,7 @@ mod test {
     #[test]
     fn test_read_csv() {
         use super::*;
-        for i in Material::ALL.values() {
+        for i in MaterialTy::ALL.values() {
             println!("{:?}", i);
         }
     }

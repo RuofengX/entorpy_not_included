@@ -1,5 +1,4 @@
 name            ,phase  ,cold_temp ,cold_product    ,hot_temp ,hot_product     ,molar_mass ,comment
-void            ,void   ,          ,                ,         ,                ,           ,虚空
 rock            ,solid  ,          ,                ,1200     ,lava            ,           ,石块
 lava            ,liquid ,1200      ,rock            ,6000     ,                ,           ,岩浆
 plasma          ,gas    ,6000      ,lava            ,         ,                ,   60.0843 ,等离子体

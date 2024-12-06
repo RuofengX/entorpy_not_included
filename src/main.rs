@@ -1,4 +1,6 @@
 #![feature(async_iterator)]
+#![feature(async_closure)]
+#![feature(portable_simd)]
 
 pub mod cell;
 pub mod player;

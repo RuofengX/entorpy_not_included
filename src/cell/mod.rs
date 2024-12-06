@@ -1,8 +1,8 @@
+mod cells;
 mod material;
 
 use std::{
     async_iter::AsyncIterator,
-    collections::BTreeMap,
     future::Future,
     ops::Deref,
     pin::{pin, Pin},
@@ -10,17 +10,18 @@ use std::{
     task::{Context, Poll},
 };
 
-use kdtree::KdTree;
+use cells::Cells;
+use futures::future::join_all;
 use serde_derive::{Deserialize, Serialize};
 
-use crate::prelude::*;
+use crate::{pos::Offset, prelude::*};
 
-pub use material::Material;
+pub use material::MaterialTy;
 
 const DEFAULT_DISTANCE: for<'a, 'b> fn(&'a [Unit], &'b [Unit]) -> Unit =
     kdtree::distance::squared_euclidean;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct CellID(usize);
 impl CellID {
     const GLOBAL_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -55,28 +56,21 @@ impl Deref for CellID {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Cell {
-    pos: Position,
-    material: Material,
+pub struct Material {
+    ty: MaterialTy,
     mass: f32,
     temperature: f32,
     /// 只有气体才有压力
     pressure: Option<f32>,
 }
-impl AsRef<Position> for Cell {
-    fn as_ref(&self) -> &Position {
-        &self.pos
-    }
-}
-impl Cell {
+impl Material {
     /// 体积
     pub const VOLUMN: f32 = 1.0;
 
     /// 新建一个Cell，认为type_hint是有效的字符串
-    pub fn new_unchecked(pos: Position, type_hint: &str, mass: f32, temperature: f32) -> Self {
-        let mut ret = Cell {
-            pos,
-            material: Material::get_unchecked(&type_hint),
+    pub fn new_unchecked(type_hint: &str, mass: f32, temperature: f32) -> Self {
+        let mut ret = Material {
+            ty: MaterialTy::get_unchecked(&type_hint),
             mass,
             temperature,
             pressure: None,
@@ -115,79 +109,73 @@ impl Cell {
     /// 更新Cell数据状态
     pub fn update(&mut self) {
         if self.mass == 0.0 {
-            self.material = Material::get_unchecked("void");
+            self.ty = MaterialTy::get_unchecked("void");
             self.mass = f32::NAN;
             self.temperature = f32::NAN;
             self.pressure = None;
             return;
         }
 
-        if let Some(new_ty) = self.material.check_transition(self.temperature) {
-            self.material = new_ty;
+        if let Some(new_ty) = self.ty.check_transition(self.temperature) {
+            self.ty = new_ty;
         }
 
         self.pressure = self
-            .material
+            .ty
             .gas_pressure(self.mass, self.temperature, Self::VOLUMN);
     }
 }
 
-// Cells
-pub struct Cells {
-    kd_idx: KdTree<Unit, CellID, Position>,
-    pos_idx: BTreeMap<Position, CellID>,
-    cells: Pool<CellID, Cell>,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Cell {
+    pub id: CellID,
+    pub pos: Position,
+    material: Option<Material>, // None if cell is void
 }
-impl Cells {
-    pub async fn add(&mut self, value: Cell) -> CellID {
-        let id = CellID::default();
-        let pos = value.pos;
-        self.cells.insert(id, value).await;
-        self.kd_idx.add(pos, id).unwrap();
-        self.pos_idx.insert(pos, id);
-        id
+impl Cell {
+    pub fn get_material(&self) -> Option<&Material> {
+        self.material.as_ref()
     }
 
-    pub async fn get_by_id(&self, id: CellID) -> Option<Pooling<Cell>> {
-        self.cells.get(&id).await
-    }
-    pub async fn get_by_position(&self, pos: Position) -> Option<Pooling<Cell>> {
-        let &id = self.pos_idx.get(&pos)?;
-        self.get_by_id(id).await
+    pub fn get_gas_pressure(&self) -> Option<f32> {
+        self.get_material().and_then(|x| x.pressure)
     }
 
-    // return None if there's no cell in self, otherwise always return Some(_)
-    pub async fn get_nearest_by_position(&self, pos: Position) -> Option<Pooling<Cell>> {
-        let (_, &id) = self
-            .kd_idx
-            .nearest(pos.as_ref(), 1, &kdtree::distance::squared_euclidean)
-            .unwrap()[0];
-        self.get_by_id(id).await
+    pub fn is_gas(&self) -> bool {
+        self.get_material().is_some_and(|x| x.pressure.is_some())
     }
 
-    pub async fn get_nearest_by_id(&self, id: CellID) -> Option<Pooling<Cell>> {
-        let pos = self.get_by_id(id).await?.as_ref().read().await.pos;
-        self.get_nearest_by_position(pos).await
+    pub fn is_void(&self) -> bool {
+        self.get_material().is_none()
     }
 
-    // search range
+    pub async fn gas_force(&self, cells: &Cells) -> Option<Offset> {
+        if !self.is_gas() {
+            return None;
+        }
 
-    pub fn iter_near_position(&self, pos: Position) -> AsyncIter {
-        let iter: Vec<(Unit, &CellID)> = self
-            .kd_idx
-            .iter_nearest(pos.as_ref().as_ref(), &DEFAULT_DISTANCE)
-            .unwrap()
-            // .map(|(dis, &x)| (dis, x))
-            .collect();
-        AsyncIter { iter, cells: &self }
+        let task = self.pos.neighbour_with_offset().into_iter();
+        let gradients = join_all(task.map(|(pos, offset)| async move {
+            if let Some(cell) = cells.get_by_position(pos).await {
+                Some((cell.read().await.get_gas_pressure()?, offset))
+            } else {
+                None
+            }
+        }))
+        .await;
+
+        let gradient: Offset = gradients
+            .into_iter()
+            .filter_map(|x| x)
+            .map(|(pressure, offset)| offset * pressure)
+            .sum();
+
+        Some(gradient)
     }
-
-    pub fn iter_within_range(&self, pos: Position, radius: Unit) -> AsyncIter {
-        let iter: Vec<(Unit, &CellID)> = self
-            .kd_idx
-            .within(pos.as_ref(), radius, &DEFAULT_DISTANCE)
-            .unwrap();
-        AsyncIter { iter, cells: &self }
+}
+impl AsRef<Position> for Cell {
+    fn as_ref(&self) -> &Position {
+        &self.pos
     }
 }
 
