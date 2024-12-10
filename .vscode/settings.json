@@ -1,7 +1,0 @@
-{
-    "dataWrangler.columnInsights.displayOnOpen": false,
-    "dataWrangler.enabledFileTypes": {
-        "csv": false,
-        "tsv": false
-    }
-}
